@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tế bào nhân thực thực vật 3D</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg1:#eaf4f1;--bg2:#b3d3d2;--panel:#ffffff;--fg:#0a2420;--mut:#33524d;--line:#4f8a80}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg1:#12303a;--bg2:#050b14;--panel:#0c1b28;--fg:#f4fbf9;--mut:#b9d3ce;--line:#5f8f9a}}
+:root[data-theme="dark"]{--bg1:#12303a;--bg2:#050b14;--panel:#0c1b28;--fg:#f4fbf9;--mut:#b9d3ce;--line:#5f8f9a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:radial-gradient(circle at 50% 38%,var(--bg1),var(--bg2));color:var(--fg)}
+.panel{background:var(--panel);color:var(--fg);border:2px solid var(--line)}
+#row::-webkit-scrollbar{display:none}
+#info .bd{display:none}
+#info.open .bd{display:block}
+#info .ch::before{content:"▲"}
+#info.open .ch::before{content:"▼"}
+@media(min-width:768px){#info .bd{display:block}#info .ch{display:none}}
+/* Màn hình chờ (CSS thuần, hiện ngay cả khi thư viện 3D chưa tải xong) */
+#ld{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.1rem;padding:1.5rem;text-align:center;background:radial-gradient(circle at 50% 38%,var(--bg1),var(--bg2));color:var(--fg);transition:opacity .7s ease,visibility .7s}
+#ld.done{opacity:0;visibility:hidden;pointer-events:none}
+.ld-cell{position:relative;box-sizing:border-box;width:148px;height:128px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.28));animation:ld-breathe 2.4s ease-in-out infinite}
+.ld-hex{position:absolute;inset:0;width:100%;height:100%}
+.ld-vac{position:absolute;left:50%;top:50%;width:104px;height:62px;margin:-31px 0 0 -52px;border-radius:50%;background:radial-gradient(ellipse at 40% 35%,#6f97f5,#2f5bd1 70%);opacity:.92;animation:ld-vac 2.4s ease-in-out infinite}
+.ld-nuc{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fbbf24,#f59e0b 70%);box-shadow:0 0 0 3px rgba(245,158,11,.35);animation:ld-pulse 1.6s ease-in-out infinite}
+.ld-nuc::after{content:"";position:absolute;left:12px;top:10px;width:12px;height:12px;border-radius:50%;background:#d0211b}
+.ld-orbit{position:absolute;inset:0;animation:ld-spin 3.6s linear infinite}
+.ld-orbit b{position:absolute;left:50%;top:50%;width:18px;height:10px;margin:-5px 0 0 -9px;border-radius:50%;background:#22a846;box-shadow:inset 0 -2px 0 rgba(0,0,0,.2);transform:rotate(var(--a)) translateX(38px)}
+.ld-orbit b.m{width:16px;height:8px;margin:-4px 0 0 -8px;background:#f0443c}
+.ld-t{margin:0;font-size:.95rem;font-weight:600;letter-spacing:.02em}
+.ld-d i{display:inline-block;width:.3em;height:.3em;margin-left:.25em;border-radius:50%;background:currentColor;animation:ld-blink 1.2s infinite both}
+.ld-d i:nth-child(2){animation-delay:.2s}
+.ld-d i:nth-child(3){animation-delay:.4s}
+.ld-bar{width:140px;height:4px;overflow:hidden;border-radius:99px;background:rgba(127,127,127,.28)}
+.ld-bar i{display:block;width:40%;height:100%;border-radius:inherit;background:#1fb36b;animation:ld-slide 1.3s ease-in-out infinite}
+#ld.err .ld-d,#ld.err .ld-bar{display:none}
+#ld.err .ld-orbit,#ld.err .ld-cell,#ld.err .ld-vac,#ld.err .ld-nuc{animation-play-state:paused}
+@keyframes ld-spin{to{transform:rotate(360deg)}}
+@keyframes ld-pulse{50%{transform:scale(1.14)}}
+@keyframes ld-vac{50%{transform:scale(1.08,1.12)}}
+@keyframes ld-breathe{50%{transform:scale(1.04)}}
+@keyframes ld-blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@keyframes ld-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){.ld-orbit{animation-duration:12s}.ld-cell,.ld-vac,.ld-nuc{animation:none}}
+/* ===== Nâng cấp giao diện ===== */
+.panel{background:color-mix(in srgb,var(--panel) 68%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border:1px solid color-mix(in srgb,var(--line) 55%,transparent);box-shadow:0 10px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.22);transition:transform .3s cubic-bezier(.2,.9,.3,1.3),box-shadow .3s}
+button.panel{cursor:pointer}
+button.panel:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 34px rgba(0,0,0,.3),0 0 22px color-mix(in srgb,var(--line) 70%,transparent)}
+button.panel:active{transform:scale(.94)}
+button.panel:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+#info>*{animation:inf .5s cubic-bezier(.2,.9,.3,1) both}
+@keyframes inf{from{opacity:0;transform:translateY(10px);filter:blur(4px)}}
+#hd h1{letter-spacing:-.01em;text-shadow:0 2px 18px color-mix(in srgb,var(--bg2) 85%,transparent)}
+@media (prefers-reduced-motion:reduce){button.panel:hover{transform:none}#info>*{animation:none}}
+/* ===== Đố vui ===== */
+body[data-q=play] #row,body[data-q=end] #row{display:none}
+@media(max-width:767px){body:not([data-q=off]) #info{max-height:46vh}body[data-q=play] #info,body[data-q=end] #info{bottom:.75rem}}
+#info .qo{display:block;width:100%;margin-top:.4rem;padding:.5rem .7rem;border-radius:.75rem;border:1px solid color-mix(in srgb,var(--line) 60%,transparent);background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--fg);font:inherit;font-size:.8rem;line-height:1.3;text-align:left;cursor:pointer;transition:background .2s,transform .15s}
+#info .qo:hover:not([disabled]){background:color-mix(in srgb,var(--line) 28%,var(--panel))}
+#info .qo:active:not([disabled]){transform:scale(.97)}
+#info .qo:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+#info .qo[disabled]{cursor:default}
+#info .qo.ok{background:#15803d;border-color:#15803d;color:#fff}
+#info .qo.no{background:#b91c1c;border-color:#b91c1c;color:#fff}
+#info .qo.qc{background:var(--fg);color:var(--panel);text-align:center;font-weight:600}
+#info .qm{margin-top:.5rem;padding:.45rem .65rem;border-radius:.65rem;font-size:.8rem;font-weight:600;color:#fff}
+#info .qm.ok{background:#15803d}#info .qm.no{background:#b91c1c}#info .qm.sk{background:#475569}
+#tt{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6rem);z-index:40;max-width:90vw;padding:.55rem 1.2rem;border-radius:999px;background:#15803d;color:#fff;font-weight:700;font-size:.95rem;box-shadow:0 8px 28px rgba(0,0,0,.35);opacity:0;pointer-events:none;transform:translate(-50%,-12px) scale(.85);transition:opacity .25s,transform .35s cubic-bezier(.2,.9,.3,1.4)}
+#tt.show{opacity:1;transform:translate(-50%,0) scale(1)}
+@media (prefers-reduced-motion:reduce){#tt{transition:none}}
+</style>
+</head>
+<body data-q="off">
+<div id="ld" role="status" aria-live="polite">
+  <div class="ld-cell">
+    <svg class="ld-hex" viewBox="0 0 148 128" aria-hidden="true"><polygon points="144.54,64 109.27,125.09 38.73,125.09 3.46,64 38.73,2.91 109.27,2.91" fill="rgba(42,159,201,.3)" stroke="#1f7a2e" stroke-width="6" stroke-linejoin="miter"/><polygon points="139.34,64 106.67,120.59 41.33,120.59 8.66,64 41.33,7.41 106.67,7.41" fill="none" stroke="#eab308" stroke-width="3"/></svg>
+    <div class="ld-vac"></div>
+    <div class="ld-nuc"></div>
+    <div class="ld-orbit">
+      <b style="--a:0deg"></b><b class="m" style="--a:72deg"></b><b style="--a:144deg"></b><b class="m" style="--a:216deg"></b><b style="--a:288deg"></b>
+    </div>
+  </div>
+  <p class="ld-t"><span class="ld-msg">Mô hình được dựng bởi nhóm 2</span><span class="ld-d"><i></i><i></i><i></i></span></p>
+  <div class="ld-bar"><i></i></div>
+</div>
+<script>
+// Nếu thư viện 3D không tải được hoặc WebGL lỗi trước khi dựng xong: báo lỗi thay vì quay mãi
+addEventListener('error',function(){var l=document.getElementById('ld');if(l&&!window.__ready){l.classList.add('err');l.querySelector('.ld-msg').textContent='Không tải được mô hình 3D. Kiểm tra mạng rồi tải lại trang.'}});
+</script>
+<div id="tt" role="status" aria-live="polite"></div>
+<canvas id="c" class="fixed inset-0 touch-none"></canvas>
+<main class="relative h-full pointer-events-none">
+  <header id="hd" class="absolute top-3 left-3 right-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+    <div>
+      <h1 class="text-base md:text-xl font-bold leading-tight">Tế bào nhân thực thực vật</h1>
+      <p class="text-xs" style="color:var(--mut)">Kéo để xoay · chụm để phóng to · chạm vào bào quan</p>
+    </div>
+    <div class="flex shrink-0 gap-2 self-start pointer-events-auto text-xs">
+      <button id="qb" class="panel rounded-full px-3 py-1.5">Đố vui</button>
+      <button id="rot" class="panel rounded-full px-3 py-1.5">Tự xoay</button>
+      <button id="wl" class="panel rounded-full px-3 py-1.5">Ẩn vách</button>
+      <button id="rs" class="panel rounded-full px-3 py-1.5">Đặt lại</button>
+    </div>
+  </header>
+  <div id="info" class="panel pointer-events-auto absolute left-3 right-3 bottom-[3.9rem] max-h-[30vh] overflow-y-auto rounded-2xl px-3 py-2 md:left-auto md:w-80 md:top-24 md:bottom-auto md:max-h-[70vh] md:p-4"></div>
+  <div id="row" class="pointer-events-auto absolute left-3 right-3 bottom-3 flex gap-2 overflow-x-auto md:right-auto md:w-48 md:top-24 md:bottom-auto md:flex-col md:overflow-visible"></div>
+</main>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script>
+const T=THREE,R=Math.random,$=s=>document.querySelector(s),cl=(x,a)=>Math.max(-a,Math.min(a,x));
+const DATA=[
+{k:'wall',n:'Vách tế bào',en:'Cell wall',c:'#1f7a2e',s:'Lớp ngoài cùng, dày và cứng; thành phần chính là cellulose, hemicellulose và pectin.',f:'Bảo vệ, nâng đỡ, giữ hình dạng cố định cho tế bào và chống vỡ khi tế bào hút nước.'},
+{k:'membrane',n:'Màng sinh chất',en:'Plasma membrane',c:'#eab308',s:'Lớp kép phospholipid xen protein, nằm sát bên trong vách tế bào.',f:'Bán thấm: kiểm soát chất ra vào tế bào và trao đổi thông tin với môi trường.'},
+{k:'vacuole',n:'Không bào trung tâm',en:'Central vacuole',c:'#2f5bd1',s:'Túi lớn bao bởi màng không bào, chứa dịch bào (nước, muối khoáng, đường, sắc tố).',f:'Dự trữ nước và chất dinh dưỡng, tạo áp suất trương giúp tế bào căng, phân giải chất thải. Chiếm phần lớn thể tích tế bào trưởng thành.'},
+{k:'chloro',n:'Lục lạp',en:'Chloroplast',c:'#22a846',s:'Màng kép; bên trong là các túi thylakoid xếp chồng thành grana, nằm trong chất nền stroma; chứa diệp lục, DNA và ribosome riêng.',f:'Quang hợp: hấp thụ ánh sáng để tổng hợp glucose từ CO₂ và H₂O, giải phóng O₂.'},
+{k:'nucleus',n:'Nhân tế bào',en:'Nucleus',c:'#f59e0b',s:'Màng nhân kép có nhiều lỗ nhân; bên trong là nhân con và chất nhiễm sắc (DNA liên kết protein).',f:'Chứa thông tin di truyền, điều khiển mọi hoạt động sống và sự phân chia của tế bào.'},
+{k:'nucleolus',n:'Hạch nhân',en:'Nucleolus',c:'#d0211b',s:'Còn gọi là nhân con: vùng đặc, không có màng bao, nằm trong nhân; chứa rRNA, protein và các đoạn DNA mã hóa rRNA.',f:'Tổng hợp rRNA và lắp ráp các tiểu đơn vị của ribosome, rồi chuyển ra tế bào chất.'},
+{k:'mito',n:'Ti thể',en:'Mitochondrion',c:'#f0443c',s:'Màng kép; màng trong gấp nếp thành các mào (cristae) bao quanh chất nền; có DNA riêng.',f:'Hô hấp tế bào: phân giải chất hữu cơ để tổng hợp ATP cung cấp năng lượng.'},
+{k:'er',n:'Lưới nội chất',en:'Endoplasmic reticulum',c:'#e0560f',s:'Hệ thống túi dẹt và ống thông với màng nhân. ER hạt có ribosome bám (chấm vàng); ER trơn không có (ống vàng).',f:'ER hạt tổng hợp protein; ER trơn tổng hợp lipid, chuyển hóa đường và khử độc.'},
+{k:'golgi',n:'Bộ máy Golgi',en:'Golgi apparatus',c:'#e5266f',s:'Chồng túi dẹt xếp song song, rìa có các túi tiết (vesicle).',f:'Chế biến, đóng gói và phân phối protein, lipid; ở thực vật còn tạo polysaccharide cho vách tế bào.'},
+{k:'cyto',n:'Tế bào chất',en:'Cytoplasm',c:'#2a9fc9',s:'Bào tương dạng gel chứa các bào quan và khung xương tế bào.',f:'Nơi diễn ra nhiều phản ứng chuyển hóa; dòng chảy tế bào chất (các hạt sáng) giúp vận chuyển chất.'},
+{k:'cytoskel',n:'Khung xương tế bào',en:'Cytoskeleton',c:'#d99a4e',s:'Mạng lưới các sợi protein (vi ống, vi sợi, sợi trung gian) đan xen trong tế bào chất, xếp thành từng bó sợi mảnh.',f:'Nâng đỡ và giữ hình dạng tế bào, neo giữ các bào quan, làm đường vận chuyển nội bào và tham gia vào sự phân chia tế bào.'}];
+const INTRO={n:'Khám phá tế bào thực vật',en:'Plant eukaryotic cell',c:'#1fb36b',s:'Có vách cellulose, lục lạp, không bào trung tâm lớn và khung xương tế bào.',f:'Chạm vào một bào quan hoặc chọn trong danh sách để camera phóng tới và xem thông tin.'};
+
+const cv=$('#c'),rd=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+rd.setPixelRatio(Math.min(devicePixelRatio,innerWidth<768?1.5:2));
+rd.outputEncoding=T.sRGBEncoding;rd.toneMapping=T.ACESFilmicToneMapping;rd.toneMappingExposure=.36;rd.shadowMap.enabled=true;rd.shadowMap.type=T.PCFSoftShadowMap;
+const sc=new T.Scene(),cam=new T.PerspectiveCamera(45,1,.1,200),home={p:new T.Vector3(),t:new T.Vector3()};
+const ct=new T.OrbitControls(cam,cv);ct.enableDamping=true;ct.minDistance=2;ct.maxDistance=70;ct.autoRotateSpeed=.8;
+{const e=new T.Scene(),g=new T.SphereGeometry(40,24,12),p=g.attributes.position,c=[];
+ for(let i=0;i<p.count;i++){const y=p.getY(i)/40,k=new T.Color().setHSL(.55,.45,.12+.3*(y*.5+.5));c.push(k.r,k.g,k.b)}
+ g.setAttribute('color',new T.Float32BufferAttribute(c,3));
+ e.add(new T.Mesh(g,new T.MeshBasicMaterial({vertexColors:true,side:T.BackSide})));
+ [[0,30,0],[25,8,20],[-25,6,-15]].forEach(q=>{const m=new T.Mesh(new T.PlaneGeometry(22,22),new T.MeshBasicMaterial({color:new T.Color(7,7,7),side:T.DoubleSide}));m.position.set(...q);m.lookAt(0,0,0);e.add(m)});
+ sc.environment=new T.PMREMGenerator(rd).fromScene(e).texture}
+sc.add(new T.HemisphereLight(0xcfeeff,0x203040,.6));
+const dl=new T.DirectionalLight(0xfff4e0,1.15);dl.position.set(6,10,8);dl.castShadow=true;
+{const h=dl.shadow,k=h.camera,m=innerWidth<768?1024:2048;h.mapSize.set(m,m);k.left=k.bottom=-14;k.right=k.top=14;k.near=1;k.far=40;k.updateProjectionMatrix();h.bias=-.0005;h.normalBias=.04}
+sc.add(dl);const rl=new T.DirectionalLight(0x6fa8ff,.8);rl.position.set(-9,5,-10);sc.add(rl);
+const pl=new T.PointLight(0x88ffcc,.9,40);pl.position.set(-8,3,6);sc.add(pl);
+
+const GL=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.3,'rgba(255,255,255,.5)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new T.CanvasTexture(c)})();
+const RIM=s=>{s.fragmentShader=s.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n totalEmissiveRadiance+=(diffuse+.1)*pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),2.6)*1.2;')};
+const mats={},groups={},picks=[],movers=[];
+// Vật liệu đặc (không trong suốt). Màu hex được đổi sang không gian tuyến tính để hiện đúng độ đậm.
+// FOCUS: mức làm xám các phần còn lại khi chọn một bào quan (0 = không làm xám, 1 = xám hẳn).
+const FOCUS=.85,DIMC=new T.Color(0x6b7d82).convertSRGBToLinear(),_c=new T.Color();
+function M(k,color,x={}){const c=new T.Color(color).convertSRGBToLinear(),m=new T.MeshPhysicalMaterial(Object.assign({color:c,emissive:c,emissiveIntensity:.12,roughness:.4,clearcoat:.6,clearcoatRoughness:.3,side:T.DoubleSide},x));m.onBeforeCompile=RIM;m.envMapIntensity=1.25;m.userData.c=c;(mats[k]=mats[k]||[]).push(m);return m}
+function reg(k,o){o.userData.k=k;(groups[k]=groups[k]||[]).push(o);return o}
+function mesh(g,m,k,par,ro=0){const o=new T.Mesh(g,m);o.userData.k=k;o.renderOrder=ro;o.castShadow=!['wall','membrane','cyto'].includes(k);o.receiveShadow=true;picks.push(o);par&&par.add(o);return o}
+function rbox(w,h,d,r,s){const g=new T.BoxGeometry(w,h,d,s,s,s),p=g.attributes.position,n=g.attributes.normal,v=new T.Vector3(),c=new T.Vector3(),a=[w/2-r,h/2-r,d/2-r];
+ for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);c.set(cl(v.x,a[0]),cl(v.y,a[1]),cl(v.z,a[2]));v.sub(c).normalize();n.setXYZ(i,v.x,v.y,v.z);v.multiplyScalar(r).add(c);p.setXYZ(i,v.x,v.y,v.z)}return g}
+const cell=new T.Group();sc.add(cell);
+
+// Vách, màng, không bào
+const VX=3.3,VZ=2.7,VA=4.5,VB=2.7,VR=0.66;   // tâm, bán trục và góc xoay của không bào: hình bầu dục chéo, nằm phía dưới bên phải như Hình 8.1a SGK
+const wall=reg('wall',new T.Group()),mem=reg('membrane',new T.Group()),vac=reg('vacuole',new T.Group()),cy=new T.Group();cell.add(wall,mem,vac,cy);
+// ===== Tế bào hình LỤC GIÁC ĐỀU: hai đỉnh ở trái/phải, cạnh phẳng ở trước/sau =====
+// HA = khoảng cách từ tâm tới cạnh (đường tâm vách ngoài); HI = khoảng cách tới mặt trong của màng (lòng tế bào)
+const HA=8.5,HI=HA-.68,SQ3=Math.sqrt(3),HK=(HA+.25)*4/SQ3/16;
+function hexPrism(k,par,c,apo,h,y){const r=apo*2/SQ3;let g=new T.CylinderGeometry(r,r,h,6,1,false,Math.PI/6);g=g.toNonIndexed();g.computeVertexNormals();mesh(g,M(k,c),k,par).position.y=y}
+// Vách + màng bao đủ 6 cạnh. 3 cạnh sau cao (làm phông), 3 cạnh trước thấp hơn (chỉ nhô khỏi mặt tế bào chất 0,6) để vẫn nhìn được bên trong.
+// Hai đầu mỗi tấm cắt vát 30° nên các góc khít nhau.
+function hexWalls(k,par,c,off,t,fs,top){const apo=HA-off,len=(2*apo+t)/SQ3,h=top+3;   // sàn có mặt trên ở y=-3
+ for(const f of fs){const a=f*Math.PI/3,m=mesh(new T.BoxGeometry(len,h,t),M(k,c),k,par);m.position.set(Math.sin(a)*apo,(top-3)/2,Math.cos(a)*apo);m.rotation.y=a}}
+hexPrism('wall',wall,0x1f7a2e,HA+.25,.9,-3.45);
+for(const[fs,top]of[[[2,3,4],1.4],[[0,1,5],.6]]){   // 2,3,4 = sau-phải, sau, sau-trái; 0,1,5 = trước, trước-phải, trước-trái
+ hexWalls('wall',wall,0x1f7a2e,0,.5,fs,top);hexWalls('wall',wall,0x4cae3b,.45,.4,fs,top);
+ hexWalls('membrane',mem,0xeab308,.63,.1,fs,top+.02)}
+hexPrism('cyto',cy,0x2a9fc9,HA-.65,3,-1.5);
+
+
+
+
+const vd=mesh(new T.SphereGeometry(1,48,24,0,6.2832,0,1.5708),M('vacuole',0x2f5bd1,{roughness:.2,clearcoat:1}),'vacuole',vac);vd.scale.set(VA,2,VB);vac.position.set(VX,-.05,VZ);vac.rotation.y=VR;
+
+// Nhân
+const NP=new T.Vector3(-0.3,.35,-4.2),nuc=reg('nucleus',new T.Group());nuc.position.copy(NP);cell.add(nuc);
+mesh(new T.SphereGeometry(1.15,40,28,0,6.2832,.8,2.34),M('nucleus',0xf59e0b),'nucleus',nuc);
+reg('nucleolus',mesh(new T.SphereGeometry(.36,24,16),M('nucleolus',0xd0211b),'nucleolus',nuc)).position.set(.25,.15,.2);
+{const n=60,im=new T.InstancedMesh(new T.TorusGeometry(.07,.022,6,12),M('nucleus',0xcfdcff),n),d=new T.Object3D();
+ for(let i=0;i<n;i++){const y=.7-1.7*(i+.5)/n,r=Math.sqrt(1-y*y),a=i*2.4;d.position.set(Math.cos(a)*r,y,Math.sin(a)*r).multiplyScalar(1.15);d.lookAt(d.position.clone().multiplyScalar(2));d.updateMatrix();im.setMatrixAt(i,d.matrix)}
+ nuc.add(im);
+ [0xc2410c,0x9f1d12,0xd97706,0x7c2d12].forEach(c=>{const pts=[];for(let j=0;j<26;j++)pts.push(new T.Vector3(R()-.5,R()-.5,R()-.5).normalize().multiplyScalar(.45+R()*.4));
+  mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts,true),150,.024,5,true),M('nucleus',c),'nucleus',nuc)})}
+
+// Lưới nội chất
+const er=reg('er',new T.Group());er.position.copy(NP);cell.add(er);
+{const rib=[];
+ for(let k=0;k<4;k++){const g=new T.SphereGeometry(1.4+k*.2,56,28,k*1.3,4.6,1.05,1.9),p=g.attributes.position,v=new T.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const a=Math.atan2(v.z,v.x),b=Math.acos(v.y/v.length());v.multiplyScalar(1+.06*Math.sin(b*9+k)+.05*Math.sin(a*7+k*2));p.setXYZ(i,v.x,v.y,v.z);if(k<3&&i%6==0&&R()<.4)rib.push(v.clone().multiplyScalar(1.02))}
+  g.computeVertexNormals();mesh(g,M('er',k<3?0xe0560f:0xf08a24),'er',er)}
+ const im=new T.InstancedMesh(new T.SphereGeometry(.045,6,5),M('er',0xffd21f),rib.length),d=new T.Object3D();
+ rib.forEach((v,i)=>{d.position.copy(v);d.updateMatrix();im.setMatrixAt(i,d.matrix)});er.add(im);
+ for(let j=0;j<6;j++){const q=new T.Vector3(R()-.5,R()-.5,R()-.5).normalize().multiplyScalar(1.5),pts=[];
+  for(let i=0;i<9;i++){pts.push(q.clone());q.add(new T.Vector3(R()-.5,R()-.5,R()-.5).multiplyScalar(.9));q.y=Math.max(-.3,Math.min(.8,q.y));const hh=Math.hypot(q.x,q.z);if(hh>2.1){q.x*=2.1/hh;q.z*=2.1/hh}}
+  mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),60,.042,5),M('er',0xf5b800),'er',er)}}
+
+// Golgi
+const GP=new T.Vector3(-4.9,.45,2.85),go_=reg('golgi',new T.Group());go_.position.copy(GP);go_.rotation.y=.4;go_.scale.setScalar(1.3);cell.add(go_);
+for(let i=0;i<6;i++){const m=mesh(new T.SphereGeometry(1,28,10,0,6.2832,0,.95),M('golgi',new T.Color().setHSL(.93+i*.015,.78,.5)),'golgi',go_);m.scale.set(.72-i*.02,.45,.72-i*.02);m.position.y=i*.14-.35}
+for(let i=0;i<12;i++){const a=R()*6.28,r=.75+R()*.25,v=mesh(new T.SphereGeometry(.07+R()*.05,10,8),M('golgi',0xffb703),'golgi',go_);v.position.set(Math.cos(a)*r,R()*.8-.4,Math.sin(a)*r);movers.push({o:v,y:v.position.y,ph:R()*6,s:3})}
+
+// Lục lạp & ti thể (dùng chung geometry)
+const U=T.BufferGeometryUtils,gr=[],cr=[];
+for(const x of[-.34,-.11,.12,.35])for(const z of[-.1,.1])for(let i=0;i<5;i++)gr.push(new T.CylinderGeometry(.09,.09,.032,10).translate(x,(i-2)*.052,z));
+for(let i=0;i<6;i++)cr.push(new T.CylinderGeometry(.19,.19,.025,12).rotateZ(Math.PI/2).translate(-.46+i*.18,(i%2?.07:-.07),0));
+const gG=U.mergeBufferGeometries(gr),cG=U.mergeBufferGeometries(cr),shC=new T.SphereGeometry(.5,24,16,0,6.2832,1.1,Math.PI-1.1),shM=new T.SphereGeometry(.5,24,16,0,6.2832,1,Math.PI-1);
+// Bố trí theo Hình 8.1a SGK: nhân + lưới nội chất ở phía trên, Golgi bên trái, không bào chéo phía dưới bên phải, 3 ti thể và 4 lục lạp rải ở khoảng trống.
+// Vị trí [x,z]; mỗi bào quan chiếm một đĩa (lục lạp r=0,8, ti thể r=0,85, Golgi r=1,5, nhân+ER r=2,25). Đã tính: cách nhau ≥0,35, cách vách ≥0,5, không chạm không bào
+const CP=[[-5.50,-2.95],[0.90,-0.40],[-2.00,4.70],[-1.00,6.40]],CR=[-1.1,.64,-1.47,0],
+MP=[[5.20,-3.50],[-6.00,0.00],[-2.34,0.77]],MR=[-.8,.38,-.57];
+for(let i=0;i<CP.length;i++){const g=reg('chloro',new T.Group());g.position.set(CP[i][0],.12,CP[i][1]);g.rotation.y=CR[i];g.scale.setScalar(1.4);cell.add(g);
+ mesh(shC,M('chloro',0x22a846),'chloro',g).scale.set(1.1,.62,.78);mesh(gG,M('chloro',0x0f6a2c),'chloro',g);movers.push({o:g,y:g.position.y,ph:R()*6,s:.06})}
+for(let i=0;i<MP.length;i++){const g=reg('mito',new T.Group());g.position.set(MP[i][0],.12,MP[i][1]);g.rotation.y=MR[i];g.scale.setScalar(1.3);cell.add(g);
+ mesh(shM,M('mito',0xf0443c),'mito',g).scale.set(1.3,.55,.55);mesh(cG,M('mito',0x9b1233),'mito',g);movers.push({o:g,y:g.position.y,ph:R()*6,s:.06})}
+
+// Khung xương tế bào: các bó 3 sợi protein song song, hơi cong (như Hình 8.1a), đặt ở khoảng trống của tế bào chất, không chạm bào quan nào
+const KP=[[-4.02,-5.67,1.04],[-3.12,-1.15,0.15],[3.24,-2.65,1.68],[3.65,-6.03,2.47],[-3.86,5.95,2.46],[-1.09,2.2,1.08],[-7.5,-0.71,1.16],[6.34,-1.61,2.96]],KL=2.2,km=M('cytoskel',0xd99a4e,{roughness:.5});
+for(const[x,z,a]of KP){const g=reg('cytoskel',new T.Group());g.position.set(x,.12,z);g.rotation.y=a;cell.add(g);
+ [-.24,0,.24].forEach((o,j)=>{const L=KL*(j==1?1:.82),pt=[];for(let t=0;t<=4;t++)pt.push(new T.Vector3((t/4-.5)*L,Math.sin(t*1.3+j)*.03,o+Math.sin(t*1.7+j*2+x)*.06));
+  mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pt),24,.075,6),km,'cytoskel',g);
+  for(const e of[pt[0],pt[4]])mesh(new T.SphereGeometry(.075,8,6),km,'cytoskel',g).position.copy(e)})}
+
+// Tế bào chất: hạt chảy dọc rìa tế bào
+// Hạt chảy trong các khoảng trống (ngoài không bào, nhân/ER, Golgi, lục lạp, ti thể) và trong lòng lục giác
+const OBS=[[NP.x,NP.z,2.5,2.5],[GP.x,GP.z,1.75,1.75],[VX,VZ,VA+.3,VB+.3,VR],...CP.map(p=>[p[0],p[1],1.05,1.05]),...MP.map(p=>[p[0],p[1],1.1,1.1]),...KP.map(p=>[p[0],p[1],KL/2+.2,.55,p[2]])];
+function freeSegs(z){const xh=HI*2/SQ3-Math.abs(z)/SQ3-.45,cut=[];
+ for(const[cx,cz,a,b,th=0]of OBS){const c=Math.cos(th),s=Math.sin(th),dz=z-cz,A=c*c/(a*a)+s*s/(b*b),Q=2*dz*s*c*(1/(b*b)-1/(a*a)),K=dz*dz*(s*s/(a*a)+c*c/(b*b))-1,D=Q*Q-4*A*K;
+  if(D>0){const q=Math.sqrt(D);cut.push([cx+(-Q-q)/(2*A),cx+(-Q+q)/(2*A)])}}
+ cut.sort((p,q)=>p[0]-q[0]);const o=[];let x=-xh;
+ for(const c of cut){if(c[0]>x)o.push([x,Math.min(c[0],xh)]);x=Math.max(x,c[1])}if(x<xh)o.push([x,xh]);
+ return o.filter(q=>q[1]-q[0]>.9)}
+const N=650,B=[],pos=new Float32Array(N*3);
+while(B.length<N){const z=(R()*2-1)*(HI-.5),sg=freeSegs(z),sl=sg.reduce((a,q)=>a+q[1]-q[0],0);if(!sl||R()*17>sl)continue;
+ let u=R()*sl,q=sg[0];for(const w of sg){if(u<w[1]-w[0]){q=w;break}u-=w[1]-w[0]}
+ B.push([q[0]+R()*(q[1]-q[0]),.18+R()*.55,z,z>0?1:-1,R()*6,q[0],q[1]-q[0]])}   // b[5],b[6] = đầu mút và độ dài đoạn tự do mà hạt chạy vòng trong đó
+const pg=new T.BufferGeometry();pg.setAttribute('position',new T.BufferAttribute(pos,3).setUsage(T.DynamicDrawUsage));
+const pm=new T.PointsMaterial({size:.24,map:GL,color:0xffffff,transparent:true,opacity:.8,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false});pm.userData.c=new T.Color(0xffffff);(mats.cyto=mats.cyto||[]).push(pm);
+const pts=reg('cyto',new T.Points(pg,pm));pts.frustumCulled=false;pts.userData.k='cyto';picks.push(pts);cell.add(pts);
+pg.boundingSphere=new T.Sphere(new T.Vector3(),14);
+
+// ===== Hiệu ứng nâng cao =====
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const DN=240,dp=new Float32Array(DN*3),dsp=[];
+for(let i=0;i<DN;i++){dp.set([(R()-.5)*36,R()*15-3.5,(R()-.5)*32],i*3);dsp.push(.12+R()*.35)}
+const dg=new T.BufferGeometry();dg.setAttribute('position',new T.BufferAttribute(dp,3));
+const dust=new T.Points(dg,new T.PointsMaterial({size:.2,map:GL,color:0x8fe3ff,transparent:true,opacity:.55,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}));dust.frustumCulled=false;sc.add(dust);
+// Tia năng lượng: xanh từ lục lạp (quang hợp), cam từ ti thể (ATP)
+const SN=120,sq=new Float32Array(SN*3),sk=new Float32Array(SN*3),SP=[];
+for(let i=0;i<SN;i++){const ch=i<72,a=groups[ch?'chloro':'mito'];SP.push({g:a[i%a.length],f:R(),v:.18+R()*.25,x:(R()-.5)*.9,z:(R()-.5)*.6,c:ch?[.75,1,.3]:[1,.6,.18]})}
+const sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(sq,3));sg.setAttribute('color',new T.BufferAttribute(sk,3));
+const spk=new T.Points(sg,new T.PointsMaterial({size:.26,map:GL,vertexColors:true,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}));spk.frustumCulled=false;sc.add(spk);
+// Vòng xung lan ra khi chọn bào quan
+const ring={t:9,c:new T.Vector3(),s:1,m:new T.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false,depthTest:false,blending:T.AdditiveBlending,side:T.DoubleSide,toneMapped:false})};
+ring.o=new T.Mesh(new T.RingGeometry(.92,1,64),ring.m);ring.o.renderOrder=9;ring.o.visible=false;sc.add(ring.o);
+function fxRing(c,s,k){ring.t=0;ring.c.copy(c);ring.s=Math.min(Math.max(s,.8),5);ring.m.color.set(DATA.find(x=>x.k==k).c);ring.o.visible=true}
+// Hậu kỳ (nếu không hỗ trợ sẽ tự quay về kết xuất thường)
+let cp=null,fin=null;
+try{const rt=rd.capabilities.isWebGL2?new T.WebGLMultisampleRenderTarget(innerWidth,innerHeight):void 0;if(rt)rt.samples=innerWidth<768?2:4;
+ cp=new T.EffectComposer(rd,rt);cp.addPass(new T.RenderPass(sc,cam));
+ cp.addPass(new T.UnrealBloomPass(new T.Vector2(innerWidth,innerHeight),.6,.7,.6));
+ fin=new T.ShaderPass({uniforms:{tDiffuse:{value:null},uT:{value:0},uAsp:{value:1},uA:{value:new T.Color()},uB:{value:new T.Color()}},
+ vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+ fragmentShader:`uniform sampler2D tDiffuse;uniform float uT,uAsp;uniform vec3 uA,uB;varying vec2 vUv;
+float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+void main(){vec2 q=vUv-.5;float r=length(q)*1.414;vec4 s=texture2D(tDiffuse,vUv);vec2 o=q*r*.012;
+ s.r=texture2D(tDiffuse,vUv+o).r;s.b=texture2D(tDiffuse,vUv-o).b;
+ vec2 w=(vUv-vec2(.5,.38))*vec2(uAsp,1.);
+ vec3 bg=mix(uA,uB,clamp(length(w)/length(vec2(.5*uAsp,.62)),0.,1.));
+ vec3 c=s.rgb+bg*(1.-clamp(s.a,0.,1.));
+ c*=1.-.34*smoothstep(.55,1.05,r);c+=(h(vUv*900.+uT)-.5)*.02;c=max(c,0.);
+ c=mix(c*12.92,1.055*pow(c,vec3(.4166667))-.055,step(.0031308,c));gl_FragColor=vec4(c,1.);}`});
+ cp.addPass(fin);
+ const th=()=>{const g=getComputedStyle(document.documentElement);fin.uniforms.uA.value.set(g.getPropertyValue('--bg1').trim()).convertSRGBToLinear();fin.uniforms.uB.value.set(g.getPropertyValue('--bg2').trim()).convertSRGBToLinear()};
+ th();matchMedia('(prefers-color-scheme:dark)').addEventListener('change',th);new MutationObserver(th).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']})
+}catch(e){cp=null;fin=null}
+function fxu(t,dt){if(RM)dt*=.2;
+ for(let i=0;i<DN;i++){let y=dp[3*i+1]+dsp[i]*dt;if(y>11.5)y=-3.5;dp[3*i+1]=y;dp[3*i]+=Math.sin(t*.4+i)*dt*.25}
+ dg.attributes.position.needsUpdate=true;
+ for(let i=0;i<SN;i++){const e=SP[i],g=e.g.position,l=(e.f+t*e.v)%1,a=Math.sin(Math.PI*l)*(!sel||sel==e.g.userData.k?1:.1);
+  sq[3*i]=g.x+e.x*(.4+l);sq[3*i+1]=g.y+.3+l*1.6;sq[3*i+2]=g.z+e.z*(.4+l);sk[3*i]=e.c[0]*a;sk[3*i+1]=e.c[1]*a;sk[3*i+2]=e.c[2]*a}
+ sg.attributes.position.needsUpdate=sg.attributes.color.needsUpdate=true;
+ if(ring.t<1){ring.t+=dt/1.1;const e=1-Math.pow(1-ring.t,3);ring.o.position.copy(ring.c);ring.o.quaternion.copy(cam.quaternion);ring.o.scale.setScalar(ring.s*(.35+1.05*e));ring.m.opacity=.85*(1-ring.t);if(ring.t>=1)ring.o.visible=false}
+ if(fin)fin.uniforms.uT.value=t}
+
+// Tương tác
+let sel=null,tw=null;const hot=k=>sel==k||(sel=='nucleus'&&k=='nucleolus');
+const rc=new T.Raycaster(),ms=new T.Vector2(),BIG=['wall','membrane','vacuole','cyto'];rc.params.Points.threshold=.12;
+const vis=o=>{while(o){if(!o.visible)return false;o=o.parent}return true};
+const root=(o,k)=>{while(o&&!groups[k].includes(o))o=o.parent;return o};
+function pick(e){const r=cv.getBoundingClientRect();ms.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);rc.setFromCamera(ms,cam);
+ const h=rc.intersectObjects(picks,false).filter(x=>vis(x.object));return h.find(x=>!BIG.includes(x.object.userData.k))||h[0]}
+const row=$('#row');
+DATA.forEach(d=>{const b=document.createElement('button');b.dataset.k=d.k;b.className='panel shrink-0 flex items-center gap-1.5 rounded-full md:rounded-xl px-3 py-1.5 text-xs text-left';b.innerHTML=`<i class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${d.c}"></i>${d.n}`;b.onclick=()=>go(d.k);row.appendChild(b)});
+function ui(k){if(Q.st!='off'){if(Q.st!='menu'||!k)return qui();qs('off')}const d=DATA.find(x=>x.k==k)||INTRO;
+ $('#info').innerHTML=`<button class="tg flex w-full items-center gap-2 text-left" aria-expanded="${$('#info').classList.contains('open')}"><i class="w-3 h-3 rounded-full shrink-0" style="background:${d.c}"></i><div class="min-w-0 flex-1 flex items-baseline gap-2 md:block"><h2 class="font-semibold text-sm md:text-base whitespace-nowrap">${d.n}</h2><p class="text-xs truncate" style="color:var(--mut)">${d.en}</p></div><span class="ch text-xs"></span></button><div class="bd mt-1.5 md:mt-2 text-xs md:text-sm leading-snug"><p><b>Cấu tạo:</b> ${d.s}</p><p class="mt-1"><b>Chức năng:</b> ${d.f}</p></div>`;
+ row.querySelectorAll('button').forEach(b=>{const on=b.dataset.k==k,c=on&&DATA.find(x=>x.k==k).c;b.style.outline=on?'2px solid '+c:'none';b.style.boxShadow=on?'0 0 22px '+c+'b0':''})}
+function go(k,obj){sel=k;ui(k);ct.autoRotate=false;let p=home.p,t=home.t;
+ if(k&&!['wall','membrane','cyto'].includes(k)){obj=obj||groups[k].reduce((a,b)=>a.getWorldPosition(new T.Vector3()).distanceTo(cam.position)<b.getWorldPosition(new T.Vector3()).distanceTo(cam.position)?a:b);
+  const bx=new T.Box3().setFromObject(obj),c=bx.getCenter(new T.Vector3()),s=bx.getSize(new T.Vector3()).length();
+  const dir=k=='nucleolus'?new T.Vector3(0,1.8,.5):new T.Vector3(0,1.1,.9);
+  fxRing(c,s,k);t=c;p=c.clone().add(dir.normalize().multiplyScalar(k=='vacuole'?15:s*1.5+1.4))}
+ tw={t:0,p0:cam.position.clone(),t0:ct.target.clone(),p1:p.clone(),t1:t.clone()}}
+// ===== Đố vui: mục 1 tìm bào quan theo gợi ý, mục 2 chức năng bào quan đang sáng =====
+const QD={
+wall:{h:'là lớp ngoài cùng dày và cứng, làm từ cellulose, giúp tế bào giữ hình dạng cố định?',f:'Bảo vệ, nâng đỡ và giữ hình dạng cố định cho tế bào'},
+membrane:{h:'nằm sát trong vách tế bào, cấu tạo từ lớp kép phospholipid và kiểm soát chất ra vào?',f:'Kiểm soát chất ra vào tế bào (màng bán thấm)'},
+vacuole:{h:'là túi rất lớn chứa dịch bào, chiếm phần lớn thể tích tế bào trưởng thành?',f:'Dự trữ nước, chất dinh dưỡng và tạo áp suất trương cho tế bào'},
+chloro:{h:'có màng kép, chứa diệp lục và thực hiện quang hợp?',f:'Quang hợp: tổng hợp glucose từ CO₂ và H₂O nhờ ánh sáng'},
+nucleus:{h:'có màng kép với nhiều lỗ nhân và chứa DNA điều khiển hoạt động của tế bào?',f:'Chứa thông tin di truyền, điều khiển hoạt động của tế bào'},
+nucleolus:{h:'là vùng đặc không có màng bao nằm trong nhân, nơi tổng hợp rRNA?',f:'Tổng hợp rRNA và lắp ráp tiểu đơn vị ribosome'},
+mito:{h:'có màng trong gấp nếp thành các mào và là nơi tổng hợp ATP?',f:'Hô hấp tế bào: tổng hợp ATP cung cấp năng lượng'},
+er:{h:'là hệ thống túi dẹt và ống nối với màng nhân, có loại có ribosome bám?',f:'Tổng hợp protein và lipid, chuyển hóa đường, khử độc'},
+golgi:{h:'là chồng túi dẹt xếp song song, chuyên đóng gói và phân phối protein?',f:'Chế biến, đóng gói và phân phối protein, lipid'},
+cyto:{h:'là dịch dạng gel chứa các bào quan, nơi diễn ra nhiều phản ứng chuyển hóa?',f:'Nơi diễn ra nhiều phản ứng chuyển hóa, vận chuyển chất'},
+cytoskel:{h:'là mạng lưới các sợi protein mảnh trong tế bào chất, giúp nâng đỡ và giữ hình dạng tế bào?',f:'Nâng đỡ, giữ hình dạng tế bào và làm đường vận chuyển nội bào'}};
+const Q={st:'off',m:1,o:[],i:0,s:0,k:'',res:'',w:0,msg:'',ch:[],pk:null};
+const qsh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a},nm=k=>DATA.find(x=>x.k==k).n;
+function qs(s){Q.st=s;document.body.dataset.q=s}
+function toast(t){const e=$('#tt');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),2000)}
+function qnext(){if(Q.i>=Q.o.length){qs('end');go(null);return}
+ const k=Q.k=Q.o[Q.i];Q.res='';Q.w=0;Q.msg='';Q.pk=null;
+ if(Q.m==2){Q.ch=qsh([k,...qsh(DATA.filter(x=>x.k!=k)).slice(0,3).map(x=>x.k)]);go(k)}else go(null)}
+function qclick(h){if(Q.m!=1||Q.res||!h)return;const k=h.object.userData.k;
+ if(k==Q.k){Q.res='ok';if(!Q.w)Q.s++;go(k,root(h.object,k));toast('Chúc mừng! Bạn chọn đúng rồi')}
+ else{Q.w++;Q.msg='Chưa đúng, đó là '+nm(k)+'. Thử lại nhé!';qui()}}
+function qact(a,v){
+ if(a=='start'){Q.m=+v;Q.o=qsh(DATA.map(d=>d.k));Q.i=Q.s=0;qs('play');qnext()}
+ else if(a=='menu'){qs('menu');go(null)}
+ else if(a=='exit'){qs('off');go(null)}
+ else if(a=='next'){Q.i++;qnext()}
+ else if(a=='skip'){Q.res='skip';go(Q.k)}
+ else if(a=='pick'&&!Q.pk){Q.pk=v;if(v==Q.k){Q.s++;toast('Chúc mừng! Bạn trả lời đúng')}qui()}}
+function qui(){let h;const n=Q.o.length,nx=`<button data-q="next" class="qo qc">${Q.i+1<n?'Câu tiếp theo':'Xem kết quả'}</button>`;
+ if(Q.st=='menu')h=`<h2 class="font-semibold text-sm md:text-base">Đố vui về tế bào</h2><p class="text-xs" style="color:var(--mut)">Chọn một mục để bắt đầu. Khi bắt đầu, thẻ thông tin sẽ bị khóa.</p><button data-q="start" data-v="1" class="qo"><b>Mục 1: Tìm bào quan</b><br>Đọc gợi ý rồi chạm đúng bào quan trên mô hình.</button><button data-q="start" data-v="2" class="qo"><b>Mục 2: Chức năng bào quan</b><br>Bào quan sáng lên, hãy chọn đúng chức năng của nó.</button><button data-q="exit" class="qo" style="text-align:center">Đóng</button>`;
+ else if(Q.st=='end')h=`<h2 class="font-semibold text-sm md:text-base">Kết quả: ${Q.s}/${n} câu đúng</h2><p class="text-xs mt-1">${Q.s>=n*.8?'Rất tốt! Bạn nắm vững các bào quan.':Q.s>=n*.5?'Khá ổn, hãy xem lại vài bào quan nữa nhé.':'Hãy khám phá mô hình rồi thử lại nhé.'}</p><button data-q="start" data-v="${Q.m}" class="qo qc">Chơi lại</button><button data-q="menu" class="qo" style="text-align:center">Chọn mục khác</button><button data-q="exit" class="qo" style="text-align:center">Thoát đố vui</button>`;
+ else{h=`<div class="flex justify-between text-xs" style="color:var(--mut)"><span>Câu ${Q.i+1}/${n}</span><span>Điểm: ${Q.s}</span></div>`;
+  if(Q.m==1)h+=`<p class="font-semibold text-sm mt-1">Bào quan nào ${QD[Q.k].h}</p>`+(Q.res=='ok'?`<p class="qm ok">Chúc mừng! Đúng rồi: ${nm(Q.k)}.</p>${nx}`:Q.res=='skip'?`<p class="qm sk">Đáp án là ${nm(Q.k)}.</p>${nx}`:`<p class="text-xs mt-1" style="color:var(--mut)">${Q.msg||'Chạm vào bào quan trên mô hình để trả lời.'}</p><button data-q="skip" class="qo" style="text-align:center">Bỏ qua, xem đáp án</button>`);
+  else h+=`<p class="font-semibold text-sm mt-1">Bào quan đang sáng lên có chức năng gì?</p>`+Q.ch.map(k=>`<button data-q="pick" data-v="${k}" class="qo${Q.pk?k==Q.k?' ok':k==Q.pk?' no':'':''}"${Q.pk?' disabled':''}>${QD[k].f}</button>`).join('')+(Q.pk?`<p class="qm ${Q.pk==Q.k?'ok':'no'}">${Q.pk==Q.k?'Chúc mừng! Bạn trả lời đúng.':'Chưa đúng. Bào quan này là '+nm(Q.k)+'.'}</p>${nx}`:'');
+  h+=`<button data-q="exit" class="text-xs underline mt-2" style="color:var(--mut)">Thoát đố vui</button>`}
+ $('#info').innerHTML=h}
+$('#info').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b)qact(b.dataset.q,b.dataset.v)});
+let dn;cv.addEventListener('pointerdown',e=>dn={x:e.clientX,y:e.clientY,t:performance.now()});
+cv.addEventListener('pointerup',e=>{if(dn&&Math.hypot(e.clientX-dn.x,e.clientY-dn.y)<6&&performance.now()-dn.t<500){const h=pick(e);if(Q.st=='play')qclick(h);else h?go(h.object.userData.k,root(h.object,h.object.userData.k)):go(null)}dn=null});
+cv.addEventListener('pointermove',e=>{if(e.pointerType=='mouse')cv.style.cursor=pick(e)?'pointer':'grab'});
+ct.addEventListener('start',()=>{tw=null});
+$('#rs').onclick=()=>go(Q.st=='play'&&Q.m==2?Q.k:null);
+$('#qb').onclick=()=>qact('menu');
+$('#rot').onclick=()=>{ct.autoRotate=!ct.autoRotate};
+$('#wl').onclick=e=>{const v=!wall.visible;wall.visible=mem.visible=v;e.target.textContent=v?'Ẩn vách':'Hiện vách'};
+function shift(){const w=innerWidth,h=innerHeight,t=$('#info').getBoundingClientRect().top,hb=$('#hd').getBoundingClientRect().bottom,dy=w<768?Math.max(0,Math.min((h-hb-t)/2,h*.25)):0;
+ dy?cam.setViewOffset(w,h,0,dy,w,h):cam.clearViewOffset();cam.updateProjectionMatrix()}
+{const ro=new ResizeObserver(shift);ro.observe($('#info'));ro.observe($('#hd'))}
+$('#info').onclick=e=>{const b=e.target.closest('.tg');if(b)b.setAttribute('aria-expanded',$('#info').classList.toggle('open'))};
+function fit(){const w=innerWidth,h=innerHeight,a=w/h,d=HK*Math.max(16,17/(.828*a));rd.setSize(w,h);cp&&(cp.setPixelRatio(rd.getPixelRatio()),cp.setSize(w,h),fin.uniforms.uAsp.value=a);cam.aspect=a;shift();
+ const first=!home.p.length();home.p.set(0,d*.62,d*.82);home.t.set(0,-.6,.4);if(first){cam.position.copy(home.p);ct.target.copy(home.t)}}
+addEventListener('resize',fit);fit();ui(null);ct.autoRotate=true;
+
+const clk=new T.Clock(),ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+(function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05),t=clk.elapsedTime;
+ if(tw){tw.t+=dt/1.3;const k=ease(Math.min(tw.t,1));cam.position.lerpVectors(tw.p0,tw.p1,k);ct.target.lerpVectors(tw.t0,tw.t1,k);if(tw.t>=1)tw=null}
+ for(const k in mats)for(const m of mats[k]){_c.copy(m.userData.c);if(sel&&!hot(k))_c.lerp(DIMC,FOCUS);m.color.lerp(_c,.1);if(m.emissive){m.emissive.copy(m.color);m.emissiveIntensity+=((hot(k)?.5+.2*Math.sin(t*4.5):.12)-m.emissiveIntensity)*.1}}
+ for(const m of movers){m.o.position.y=m.y+Math.sin(t*.9+m.ph)*m.s;if(m.s<1)m.o.rotation.y+=dt*.12}
+ for(let i=0;i<N;i++){const b=B[i];const x=b[5]+((b[0]-b[5]+b[3]*t*.45)%b[6]+b[6])%b[6];pos[3*i]=x;pos[3*i+1]=b[1]+Math.sin(t+b[4])*.12;pos[3*i+2]=b[2]+Math.cos(t*.8+b[4])*.12}
+ pg.attributes.position.needsUpdate=true;
+ ct.update();fxu(t,dt);cp?cp.render(dt):rd.render(sc,cam)})();
+
+// Hiệu ứng tải: ẩn màn hình chờ sau khung hình đầu tiên (hiện tối thiểu 1,2 giây cho khỏi chớp),
+// rồi camera bay vào từ xa. Muốn bỏ hiệu ứng bay vào: xóa khối "if(!matchMedia...)" bên dưới.
+window.__ready=true;
+requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>{
+ const l=$('#ld');l.classList.add('done');l.setAttribute('aria-hidden','true');setTimeout(()=>l.remove(),800);
+ if(!matchMedia('(prefers-reduced-motion:reduce)').matches){
+  const dir=home.p.clone().sub(home.t),far=home.t.clone().add(dir.clone().setLength(Math.min(dir.length()*1.9,64)));
+  cam.position.copy(far);tw={t:0,p0:far,t0:home.t.clone(),p1:home.p.clone(),t1:home.t.clone()}}
+},Math.max(0,1200-performance.now()))));
+</script>
+</body>
+</html>
